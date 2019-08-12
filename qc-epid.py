@@ -104,12 +104,7 @@ def read_dicom(filename,ioption):
         # print(ArrayDicom.dtype)
 
         ArrayDicom=ArrayDicom.astype(np.uint8)
-        ArrayDicom = cv2.bitwise_not(ArrayDicom) #inverting the image so the points standout
 
-        ret,thresh=cv2.threshold(ArrayDicom,100,255,cv2.THRESH_BINARY)
-        thresh2=cv2.adaptiveThreshold(ArrayDicom,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,2)
-
-        # blobs_log = blob_log(thresh, min_sigma=1, max_sigma=20, num_sigma=10, threshold=0.6)
         circles=cv2.HoughCircles(ArrayDicom,cv2.HOUGH_GRADIENT,2,50,param1=100,param2=40,minRadius=2,maxRadius=15)
         circles=np.uint16(np.around(circles))
         print(circles,np.shape(circles))
@@ -126,25 +121,17 @@ def read_dicom(filename,ioption):
             print(circles[:,i,0],circles[:,i,1],circles[:,i,2])
             center.append((circles[:,i,0],circles[:,i,1]))
 
+        viewer(ArrayDicom, dx, dy, center)
 
-
-        # for blob in blobs_log:
-        #     y, x, r = blob
-        #     center.append((int(x), int(y)))
-        #     centerXRegion.append(x)
-        #     centerYRegion.append(y)
-        #     centerRRegion.append(r)
-        #     grey_ampRegion.append(ArrayDicom[int(y), int(x)])
-        #     radius = int(r)
-        #     # print('center=', center, 'radius=', radius, 'value=', ArrayDicom[center])
-        # print('center=', center)
+    #Now that we have correctly detected the points we need to estimate the scaling of the image and the location of every ROI
 
 
 
 
-    viewer(ArrayDicom, dx, dy,center)
-    # viewer(thresh, dx, dy,center)
-    # viewer(thresh2, dx, dy,center)
+
+
+
+
 
 
 
