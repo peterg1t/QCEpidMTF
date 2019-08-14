@@ -108,11 +108,11 @@ def read_dicom(filename,ioption):
         ArrayDicom = dataset.pixel_array
 
         if ioption.startswith(('y', 'yeah', 'yes')):
-            max_val = np.amax(ArrayDicom)
-            ArrayDicom = ArrayDicom / max_val
-            min_val = np.amin(ArrayDicom)
-            ArrayDicom = ArrayDicom - min_val
-            ArrayDicom = (1 - ArrayDicom)  # inverting the range
+            # max_val = np.amax(ArrayDicom)
+            # ArrayDicom = ArrayDicom / max_val
+            # min_val = np.amin(ArrayDicom)
+            # ArrayDicom = ArrayDicom - min_val
+            # ArrayDicom = (1 - ArrayDicom)  # inverting the range
 
             min_val = np.amin(ArrayDicom)  # normalizing
             ArrayDicom = ArrayDicom - min_val
@@ -126,6 +126,9 @@ def read_dicom(filename,ioption):
         # print(ArrayDicom.dtype)
 
         ArrayDicom=ArrayDicom.astype(np.uint8)
+
+        #we need to invert the image range for both clinacs and tb
+        ArrayDicom=cv2.bitwise_not(ArrayDicom)
 
 
 
@@ -152,7 +155,7 @@ def read_dicom(filename,ioption):
 
 
 
-        cv2.drawContours(edged,contours, 0, (10,0,160), 3)
+        cv2.drawContours(edged,contours, 1, (10,0,160), 3)
         # cv2.imshow('img',th2)
         # cv2.waitKey(0)
         # # cv2.imshow('img',img_bifilt)
