@@ -127,13 +127,49 @@ def mtf_calc(ROI, ROInoise):
 
 
 
-def cnr_calc(ROI):
+def cnr_calc(ROI,ROInoise):
     #nothing here yet
     print('calculating CNR')
     plt.figure()
     plt.imshow(ROI[0])
+    plt.title('ROI_0')
     plt.figure()
     plt.imshow(ROI[1])
+    plt.title('ROI_1')
+    plt.figure()
+    plt.imshow(ROInoise[0])
+    plt.title('ROInoise_0')
+    plt.figure()
+    plt.imshow(ROInoise[1])
+    plt.title('ROInoise_1')
+
+
+
+    mean_0=np.mean(ROI[0])
+    mean_1=np.mean(ROI[1])
+
+    contrast = 100 * abs(mean_0-mean_1)/(mean_0+mean_1)
+    print('contrast=', contrast)
+
+    # std_dev_noise_0=np.std(ROI[0])
+    std_dev_noise_0=np.std(ROInoise[0])
+    std_dev_noise_1=np.std(ROInoise[1])
+    print('std_dev_noise_0=',std_dev_noise_0)
+
+    noise= 100*sqrt(std_dev_noise_0*std_dev_noise_0+std_dev_noise_1*std_dev_noise_1)/sqrt(mean_0*mean_0+mean_1+mean_1)
+    print('noise=',noise)
+
+
+    cnr = contrast/noise
+    # cnr = abs(mean_0-mean_1)/std_dev_noise_0
+
+
+    print('cnr=',cnr)
+
+
+
+
+
 
     plt.show()
     exit(0)
@@ -176,36 +212,40 @@ def read_dicom(filename1,filename2,ioption):
         ArrayDicom_o = dataset.pixel_array
         ArrayDicom = dataset.pixel_array
         ArrayDicom2 = dataset2.pixel_array
+
+
+        # test to make sure image is displayed correctly bibs are high amplitude against dark background
+        ctr_pixel = ArrayDicom[np.shape(ArrayDicom)[0] // 2, np.shape(ArrayDicom)[1] // 2]
+        corner_pixel = ArrayDicom[0, 0]
+
+
+
+        if ctr_pixel < corner_pixel:     #we need to invert the image range for both clinacs and tb
+            max_val = np.amax(ArrayDicom)
+            volume = ArrayDicom / max_val
+            min_val = np.amin(volume)
+            volume = volume - min_val
+            volume = (1 - volume)  # inverting the range
+            ArrayDicom = volume * max_val
+
+
+            # max_val = np.amax(im_profile)
+            # volume = ArrayDicom / max_val
+            # min_val = np.amin(im_profile)
+            # volume = volume - min_val
+            # volume = (1 - volume)  # inverting the range
+
+
+
+
+
+
+
         rand_noise = ArrayDicom - ArrayDicom2  # we need the random noise so we can calculate the MTF function
-        ArrayDicom_f= cv2.bilateralFilter(np.asarray(ArrayDicom,dtype='float32'), 11, 17, 17)
-
-        # plt.figure()
-        # plt.imshow(ArrayDicom_o)
-        # plt.title('original')
-        #
-        # plt.figure()
-        # plt.imshow(ArrayDicom_f)
-        # plt.title('filtered')
-        #
-        # plt.show()
-        # exit(0)
-
-
-        # if ioption.startswith(('y', 'yeah', 'yes')):
-        #     # max_val = np.amax(ArrayDicom)
-        #     # ArrayDicom = ArrayDicom / max_val
-        #     # min_val = np.amin(ArrayDicom)
-        #     # ArrayDicom = ArrayDicom - min_val
-        #     # ArrayDicom = (1 - ArrayDicom)  # inverting the range
-        #
-        #     min_val = np.amin(ArrayDicom)  # normalizing
-        #     ArrayDicom = ArrayDicom - min_val
-        #     ArrayDicom = ArrayDicom / (np.amax(ArrayDicom))
-        # else:
-        #     min_val = np.amin(ArrayDicom)
-        #     ArrayDicom = ArrayDicom - min_val
-        #     ArrayDicom = ArrayDicom / (np.amax(ArrayDicom))
-
+        ArrayDicom_f= cv2.bilateralFilter(np.asarray(ArrayDicom,dtype='float32'), 33, 41, 17) #aggresive
+        # ArrayDicom_f= cv2.bilateralFilter(np.asarray(ArrayDicom,dtype='float32'), 3, 17, 17) #mild
+        # rand_noise_v2 =  np.asarray(ArrayDicom,dtype='float32') - ArrayDicom_f #noise removed from the bilateral filter
+        rand_noise_v2 = ArrayDicom_f - np.asarray(ArrayDicom,dtype='float32')
 
 
         min_val = np.amin(ArrayDicom)  # normalizing
@@ -226,9 +266,7 @@ def read_dicom(filename1,filename2,ioption):
         ArrayDicom=ArrayDicom.astype(np.uint8)
         ArrayDicom2=ArrayDicom2.astype(np.uint8)
 
-        #we need to invert the image range for both clinacs and tb
-        ArrayDicom=cv2.bitwise_not(ArrayDicom)
-        ArrayDicom2=cv2.bitwise_not(ArrayDicom2)
+
 
         #if we want the random noise of the image values (not the original values)
         #rand_nois, ROInoisee = ArrayDicom - ArrayDicom2  # we need the random noise so we can calculate the MTF function
@@ -343,11 +381,11 @@ def read_dicom(filename1,filename2,ioption):
     print('theta_deg (angle the phantom was placed) =',theta_deg)
 
     #The distance between the centers of the ROIs in pixels is given by
-    dist_roi=int(21/dx)       #where 21 mm is the witdh of the ROI each ROI is 20 mm width with 1mm spacer and 28mm in height
+    dist_horz_roi=int(21/dx)       #where 21 mm is the witdh of the ROI each ROI is 20 mm width with 1mm spacer and 28mm in height
     dist_vert_roi=int(28/dy)       #where 21 mm is the witdh of the ROI each ROI is 20 mm width with 1mm spacer and 28mm in height
     width_roi=int(20/dx)-10 # just subtracting a few pixels to avoid edge effects
-    height_roi=int(28/dy)-10
-    print('dist_roi=',dist_roi)
+    height_roi=int(27/dy)-10
+    print('dist_horz_roi=',dist_horz_roi)
 
 
     #The ROIs location can be identified by its positions with respect to the two points
@@ -360,6 +398,7 @@ def read_dicom(filename1,filename2,ioption):
     ArrayDicom_rot=cv2.warpAffine(ArrayDicom_f,M,(np.shape(ArrayDicom_o)[1],np.shape(ArrayDicom_o)[0])) #if we want to use the real values
     # ArrayDicom_rot=cv2.warpAffine(ArrayDicom,M,(np.shape(ArrayDicom_o)[1],np.shape(ArrayDicom_o)[0]))
     rand_noise_rot=cv2.warpAffine(rand_noise,M,(np.shape(rand_noise)[1],np.shape(rand_noise)[0]))
+    rand_noise_v2_rot=cv2.warpAffine(rand_noise_v2,M,(np.shape(rand_noise)[1],np.shape(rand_noise)[0]))
 
     plt.figure()
     plt.imshow(ArrayDicom_rot)
@@ -368,10 +407,24 @@ def read_dicom(filename1,filename2,ioption):
 
     ROImtf=[]
     ROImtf.append(ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-int(width_roi/2):xrot+int(width_roi/2)])
-    ROImtf.append(ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-dist_roi-int(width_roi/2):xrot-dist_roi+int(width_roi/2)])
-    ROImtf.append(ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot+dist_roi-int(width_roi/2):xrot+dist_roi+int(width_roi/2)])
-    ROImtf.append(ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-2*dist_roi-int(width_roi/2):xrot-2*dist_roi+int(width_roi/2)])
-    ROImtf.append(ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot+2*dist_roi-int(width_roi/2):xrot+2*dist_roi+int(width_roi/2)])
+    ROImtf.append(ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-dist_horz_roi-int(width_roi/2):xrot-dist_horz_roi+int(width_roi/2)])
+    ROImtf.append(ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot+dist_horz_roi-int(width_roi/2):xrot+dist_horz_roi+int(width_roi/2)])
+    ROImtf.append(ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-2*dist_horz_roi-int(width_roi/2):xrot-2*dist_horz_roi+int(width_roi/2)])
+    ROImtf.append(ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot+2*dist_horz_roi-int(width_roi/2):xrot+2*dist_horz_roi+int(width_roi/2)])
+
+    ROInoise = []
+    ROInoise.append(rand_noise_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
+               xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
+    ROInoise.append(rand_noise_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
+               xrot - dist_horz_roi - int(width_roi / 2):xrot - dist_horz_roi + int(width_roi / 2)])
+    ROInoise.append(rand_noise_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
+               xrot + dist_horz_roi - int(width_roi / 2):xrot + dist_horz_roi + int(width_roi / 2)])
+    ROInoise.append(rand_noise_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
+               xrot - 2 * dist_horz_roi - int(width_roi / 2):xrot - 2 * dist_horz_roi + int(width_roi / 2)])
+    ROInoise.append(rand_noise_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
+               xrot + 2 * dist_horz_roi - int(width_roi / 2):xrot + 2 * dist_horz_roi + int(width_roi / 2)])
+
+
 
     ROIcnr = []
     ROIcnr.append(ArrayDicom_rot[yrot - dist_vert_roi - int(height_roi / 2):yrot - dist_vert_roi + int(height_roi / 2),
@@ -380,25 +433,20 @@ def read_dicom(filename1,filename2,ioption):
                   xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
 
 
+    ROIcnr_noise = []
+    ROIcnr_noise.append(rand_noise_v2_rot[yrot - dist_vert_roi - int(height_roi / 2):yrot - dist_vert_roi + int(height_roi / 2),
+                  xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
+    ROIcnr_noise.append(rand_noise_v2_rot[yrot + dist_vert_roi - int(height_roi / 2):yrot + dist_vert_roi + int(height_roi / 2),
+                  xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
 
-    ROInoise = []
-    ROInoise.append(rand_noise_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
-               xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
-    ROInoise.append(rand_noise_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
-               xrot - dist_roi - int(width_roi / 2):xrot - dist_roi + int(width_roi / 2)])
-    ROInoise.append(rand_noise_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
-               xrot + dist_roi - int(width_roi / 2):xrot + dist_roi + int(width_roi / 2)])
-    ROInoise.append(rand_noise_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
-               xrot - 2 * dist_roi - int(width_roi / 2):xrot - 2 * dist_roi + int(width_roi / 2)])
-    ROInoise.append(rand_noise_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
-               xrot + 2 * dist_roi - int(width_roi / 2):xrot + 2 * dist_roi + int(width_roi / 2)])
+
 
 
     ROI1=ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-int(width_roi/2):xrot+int(width_roi/2)]
-    ROI2=ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-dist_roi-int(width_roi/2):xrot-dist_roi+int(width_roi/2)]
-    ROI3=ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot+dist_roi-int(width_roi/2):xrot+dist_roi+int(width_roi/2)]
-    ROI4=ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-2*dist_roi-int(width_roi/2):xrot-2*dist_roi+int(width_roi/2)]
-    ROI5=ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot+2*dist_roi-int(width_roi/2):xrot+2*dist_roi+int(width_roi/2)]
+    ROI2=ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-dist_horz_roi-int(width_roi/2):xrot-dist_horz_roi+int(width_roi/2)]
+    ROI3=ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot+dist_horz_roi-int(width_roi/2):xrot+dist_horz_roi+int(width_roi/2)]
+    ROI4=ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-2*dist_horz_roi-int(width_roi/2):xrot-2*dist_horz_roi+int(width_roi/2)]
+    ROI5=ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot+2*dist_horz_roi-int(width_roi/2):xrot+2*dist_horz_roi+int(width_roi/2)]
 
 
     # plt.figure()
@@ -427,7 +475,7 @@ def read_dicom(filename1,filename2,ioption):
     mtf_calc(ROImtf,ROInoise)
 
     #now that we have the ROIs we can proceed to calculate the CNR (contrast to noise ratio and the random noise)
-    cnr_calc(ROIcnr)
+    cnr_calc(ROIcnr,ROIcnr_noise)
 
 
 
