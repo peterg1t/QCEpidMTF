@@ -32,6 +32,7 @@ import cv2
 from skimage.feature import blob_log
 from math import *
 from operator import itemgetter
+from scipy.integrate import newton_cotes
 
 
 
@@ -126,6 +127,12 @@ def mtf_calc(ROI, ROInoise):
     plt.show(block=False)
 
 
+    # we also want to integrate the MTF and we use the Newton-Cotes formula for integration over a irregular space
+    iMTF=abs(np.trapz(MTF,LinePairs)) #since the x is reversed (higher to lower) we just the the absolute value
+    print('integral MTF',iMTF)
+
+
+
 
 def cnr_calc(ROI,ROInoise):
     #nothing here yet
@@ -155,6 +162,7 @@ def cnr_calc(ROI,ROInoise):
     std_dev_noise_0=np.std(ROInoise[0])
     std_dev_noise_1=np.std(ROInoise[1])
     print('std_dev_noise_0=',std_dev_noise_0)
+    print('std_dev_noise_1=',std_dev_noise_1)
 
     noise= 100*sqrt(std_dev_noise_0*std_dev_noise_0+std_dev_noise_1*std_dev_noise_1)/sqrt(mean_0*mean_0+mean_1+mean_1)
     print('noise=',noise)
