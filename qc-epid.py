@@ -161,7 +161,7 @@ def cnr_calc(ROI,ROInoise):
 
 
     cnr = contrast/noise
-    # cnr = abs(mean_0-mean_1)/std_dev_noise_0
+    # cnr = abs(mean_0-mean_1)/std_dev_noise_1
 
 
     print('cnr=',cnr)
@@ -229,23 +229,13 @@ def read_dicom(filename1,filename2,ioption):
             ArrayDicom = volume * max_val
 
 
-            # max_val = np.amax(im_profile)
-            # volume = ArrayDicom / max_val
-            # min_val = np.amin(im_profile)
-            # volume = volume - min_val
-            # volume = (1 - volume)  # inverting the range
-
-
-
-
-
-
 
         rand_noise = ArrayDicom - ArrayDicom2  # we need the random noise so we can calculate the MTF function
-        ArrayDicom_f= cv2.bilateralFilter(np.asarray(ArrayDicom,dtype='float32'), 33, 41, 17) #aggresive
-        # ArrayDicom_f= cv2.bilateralFilter(np.asarray(ArrayDicom,dtype='float32'), 3, 17, 17) #mild
+        # ArrayDicom_f= cv2.bilateralFilter(np.asarray(ArrayDicom,dtype='float32'), 33, 33, 17) #aggresive
+        # ArrayDicom_f= cv2.bilateralFilter(np.asarray(ArrayDicom,dtype='float32'), 27, 27, 17) #good with (method2 mean0-mean1)/std_ROInoise[1]
+        ArrayDicom_f= cv2.bilateralFilter(np.asarray(ArrayDicom,dtype='float32'), 3, 17, 17) #mild
         # rand_noise_v2 =  np.asarray(ArrayDicom,dtype='float32') - ArrayDicom_f #noise removed from the bilateral filter
-        rand_noise_v2 = ArrayDicom_f - np.asarray(ArrayDicom,dtype='float32')
+        rand_noise_v2 =  np.asarray(ArrayDicom,dtype='float32') - ArrayDicom_f
 
 
         min_val = np.amin(ArrayDicom)  # normalizing
@@ -290,7 +280,8 @@ def read_dicom(filename1,filename2,ioption):
 
 
         # doing blob detection
-        blobs_log = blob_log(th2, min_sigma=3, max_sigma=5, num_sigma=20, threshold=0.5,exclude_border=True)
+        # blobs_log = blob_log(th2, min_sigma=3, max_sigma=5, num_sigma=20, threshold=0.5,exclude_border=True)
+        blobs_log = blob_log(th2, min_sigma=3, max_sigma=5, num_sigma=20, threshold=0.5) # run on windows, for some stupid reason exclude_border is not recognized in my distro at home
 
         center=[]
         point_det=[]
@@ -395,7 +386,7 @@ def read_dicom(filename1,filename2,ioption):
 
 
     M = cv2.getRotationMatrix2D((xrot,yrot),theta_deg,1)
-    ArrayDicom_rot=cv2.warpAffine(ArrayDicom_f,M,(np.shape(ArrayDicom_o)[1],np.shape(ArrayDicom_o)[0])) #if we want to use the real values
+    ArrayDicom_rot=cv2.warpAffine(ArrayDicom_f,M,(np.shape(ArrayDicom_o)[1],np.shape(ArrayDicom_o)[0])) #if we want to use the filtered values
     # ArrayDicom_rot=cv2.warpAffine(ArrayDicom,M,(np.shape(ArrayDicom_o)[1],np.shape(ArrayDicom_o)[0]))
     rand_noise_rot=cv2.warpAffine(rand_noise,M,(np.shape(rand_noise)[1],np.shape(rand_noise)[0]))
     rand_noise_v2_rot=cv2.warpAffine(rand_noise_v2,M,(np.shape(rand_noise)[1],np.shape(rand_noise)[0]))
