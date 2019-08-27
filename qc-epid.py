@@ -33,7 +33,7 @@ from skimage.feature import blob_log
 from math import *
 from operator import itemgetter
 from scipy.integrate import newton_cotes
-
+import utils as u
 
 
 def running_mean(x, N):
@@ -96,6 +96,20 @@ def shape_detect(c):
 
 
 
+# def range_invert(array):
+#     max_val = np.amax(array)
+#     volume = array / max_val
+#     min_val = np.amin(volume)
+#     volume = volume - min_val
+#     volume = (1 - volume)  # inverting the range
+#     array = volume * max_val
+#
+#     return array
+
+
+
+
+
 
 
 def mtf_calc(ROI, ROInoise):
@@ -149,6 +163,22 @@ def cnr_calc(ROI,ROInoise):
     plt.figure()
     plt.imshow(ROInoise[1])
     plt.title('ROInoise_1')
+    # plt.figure()
+    # plt.imshow(ROInoise[2])
+    # plt.title('ROInoise_2')
+    # plt.figure()
+    # plt.imshow(ROInoise[3])
+    # plt.title('ROInoise_3')
+    # plt.figure()
+    # plt.imshow(ROInoise[4])
+    # plt.title('ROInoise_4')
+    # plt.figure()
+    # plt.imshow(ROInoise[5])
+    # plt.title('ROInoise_5')
+
+
+    plt.show()
+    # exit(0)
 
 
 
@@ -161,19 +191,35 @@ def cnr_calc(ROI,ROInoise):
     # std_dev_noise_0=np.std(ROI[0])
     std_dev_noise_0=np.std(ROInoise[0])
     std_dev_noise_1=np.std(ROInoise[1])
+    std_dev_noise_2=np.std(ROInoise[2])
+    std_dev_noise_3=np.std(ROInoise[3])
+    std_dev_noise_4=np.std(ROInoise[4])
+    std_dev_noise_5=np.std(ROInoise[5])
+    avg_std_dev_noise=(1/sqrt(2))*((std_dev_noise_0+std_dev_noise_1+std_dev_noise_2+std_dev_noise_3+std_dev_noise_4+std_dev_noise_5)/6)
+
     print('std_dev_noise_0=',std_dev_noise_0)
-    print('std_dev_noise_1=',std_dev_noise_1)
+    # print('std_dev_noise_1=',std_dev_noise_1)
+    # print('std_dev_noise_2=',std_dev_noise_2)
+    # print('std_dev_noise_3=',std_dev_noise_3)
+    # print('std_dev_noise_4=',std_dev_noise_4)
+    # print('std_dev_noise_5=',std_dev_noise_5)
+    print('avg_std_dev_noise=',avg_std_dev_noise)
 
-    noise= 100*sqrt(std_dev_noise_0*std_dev_noise_0+std_dev_noise_1*std_dev_noise_1)/sqrt(mean_0*mean_0+mean_1+mean_1)
-    print('noise=',noise)
 
 
-    cnr = contrast/noise
-    # cnr = abs(mean_0-mean_1)/std_dev_noise_1
+    # noise= 100*sqrt(std_dev_noise_0*std_dev_noise_0+std_dev_noise_1*std_dev_noise_1)/sqrt(mean_0*mean_0+mean_1+mean_1)
+    # print('noise=',noise)
+
+
+    # cnr = contrast/noise
+    # cnr = abs(mean_0-mean_1)/avg_std_dev_noise
+
+    # cnr using only the std_dev of the dark region (ROI11)
+    cnr = abs(mean_0-mean_1)/std_dev_noise_0
 
 
     print('cnr=',cnr)
-
+    exit(0)
 
 
 
@@ -222,6 +268,7 @@ def read_dicom(filename1,filename2,ioption):
         ArrayDicom2 = dataset2.pixel_array
 
 
+
         # test to make sure image is displayed correctly bibs are high amplitude against dark background
         ctr_pixel = ArrayDicom[np.shape(ArrayDicom)[0] // 2, np.shape(ArrayDicom)[1] // 2]
         corner_pixel = ArrayDicom[0, 0]
@@ -229,12 +276,8 @@ def read_dicom(filename1,filename2,ioption):
 
 
         if ctr_pixel < corner_pixel:     #we need to invert the image range for both clinacs and tb
-            max_val = np.amax(ArrayDicom)
-            volume = ArrayDicom / max_val
-            min_val = np.amin(volume)
-            volume = volume - min_val
-            volume = (1 - volume)  # inverting the range
-            ArrayDicom = volume * max_val
+            ArrayDicom=u.range_invert(ArrayDicom)
+            ArrayDicom2=u.range_invert(ArrayDicom2)
 
 
 
@@ -246,28 +289,17 @@ def read_dicom(filename1,filename2,ioption):
         rand_noise_v2 =  np.asarray(ArrayDicom,dtype='float32') - ArrayDicom_f
 
 
-        min_val = np.amin(ArrayDicom)  # normalizing
-        ArrayDicom = ArrayDicom - min_val
-        ArrayDicom = ArrayDicom / (np.amax(ArrayDicom)) #normalizing the data
-
-        min_val = np.amin(ArrayDicom2)  # normalizing
-        ArrayDicom2 = ArrayDicom2 - min_val
-        ArrayDicom2 = ArrayDicom2 / (np.amax(ArrayDicom2)) #normalizing the data
-
-
+        ArrayDicom=u.norm01(ArrayDicom)
+        ArrayDicom2=u.norm01(ArrayDicom2)
 
 
         ArrayDicom= 255* ArrayDicom
         ArrayDicom2= 255* ArrayDicom2
         # print(ArrayDicom.dtype)
 
+
         ArrayDicom=ArrayDicom.astype(np.uint8)
         ArrayDicom2=ArrayDicom2.astype(np.uint8)
-
-
-
-        #if we want the random noise of the image values (not the original values)
-        #rand_nois, ROInoisee = ArrayDicom - ArrayDicom2  # we need the random noise so we can calculate the MTF function
 
 
 
@@ -394,15 +426,17 @@ def read_dicom(filename1,filename2,ioption):
 
 
     M = cv2.getRotationMatrix2D((xrot,yrot),theta_deg,1)
-    ArrayDicom_rot=cv2.warpAffine(ArrayDicom_f,M,(np.shape(ArrayDicom_o)[1],np.shape(ArrayDicom_o)[0])) #if we want to use the filtered values
+    ArrayDicom_rot=cv2.warpAffine(u.range_invert(ArrayDicom_o),M,(np.shape(ArrayDicom_o)[1],np.shape(ArrayDicom_o)[0])) #if we want to use the filtered values
     # ArrayDicom_rot=cv2.warpAffine(ArrayDicom,M,(np.shape(ArrayDicom_o)[1],np.shape(ArrayDicom_o)[0]))
     rand_noise_rot=cv2.warpAffine(rand_noise,M,(np.shape(rand_noise)[1],np.shape(rand_noise)[0]))
     rand_noise_v2_rot=cv2.warpAffine(rand_noise_v2,M,(np.shape(rand_noise)[1],np.shape(rand_noise)[0]))
 
-    plt.figure()
-    plt.imshow(ArrayDicom_rot)
-    plt.title('rotated')
-    plt.show(block=False)
+    # plt.figure()
+    # plt.imshow(ArrayDicom_rot)
+    # plt.title('ArrayDicom_rot')
+    # plt.show()
+    # exit(0)
+
 
     ROImtf=[]
     ROImtf.append(ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-int(width_roi/2):xrot+int(width_roi/2)])
@@ -433,10 +467,20 @@ def read_dicom(filename1,filename2,ioption):
 
 
     ROIcnr_noise = []
-    ROIcnr_noise.append(rand_noise_v2_rot[yrot - dist_vert_roi - int(height_roi / 2):yrot - dist_vert_roi + int(height_roi / 2),
+    ROIcnr_noise.append(rand_noise_rot[yrot - dist_vert_roi - int(height_roi / 2):yrot - dist_vert_roi + int(height_roi / 2),
                   xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
-    ROIcnr_noise.append(rand_noise_v2_rot[yrot + dist_vert_roi - int(height_roi / 2):yrot + dist_vert_roi + int(height_roi / 2),
+    ROIcnr_noise.append(rand_noise_rot[yrot + dist_vert_roi - int(height_roi / 2):yrot + dist_vert_roi + int(height_roi / 2),
                   xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
+
+    ROIcnr_noise.append(rand_noise_rot[yrot - dist_vert_roi - int(height_roi / 2):yrot - dist_vert_roi + int(height_roi / 2),
+                  xrot - dist_horz_roi- int(width_roi / 2):xrot - dist_horz_roi+ int(width_roi / 2)])
+    ROIcnr_noise.append(rand_noise_rot[yrot + dist_vert_roi - int(height_roi / 2):yrot + dist_vert_roi + int(height_roi / 2),
+                  xrot - dist_horz_roi- int(width_roi / 2):xrot - dist_horz_roi+ int(width_roi / 2)])
+
+    ROIcnr_noise.append(rand_noise_rot[yrot - dist_vert_roi - int(height_roi / 2):yrot - dist_vert_roi + int(height_roi / 2),
+                  xrot + dist_horz_roi- int(width_roi / 2):xrot + dist_horz_roi + int(width_roi / 2)])
+    ROIcnr_noise.append(rand_noise_rot[yrot + dist_vert_roi - int(height_roi / 2):yrot + dist_vert_roi + int(height_roi / 2),
+                  xrot + dist_horz_roi- int(width_roi / 2):xrot + dist_horz_roi + int(width_roi / 2)])
 
 
 
@@ -518,12 +562,6 @@ args=parser.parse_args()
 
 filename1=args.epid1
 filename2=args.epid2
-
-
-# filename2=''
-# if args.add:
-#     additional=args.add
-#     filename2=additional.name
 
 
 
