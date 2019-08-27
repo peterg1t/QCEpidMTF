@@ -53,7 +53,7 @@ def running_mean(x, N):
 
 
 # axial visualization and scrolling
-def viewer(volume, dx, dy,center):
+def viewer(volume, dx, dy,center,title):
     # remove_keymap_conflicts({'j', 'k'})
     fig, ax = plt.subplots()
     ax.volume = volume
@@ -66,7 +66,8 @@ def viewer(volume, dx, dy,center):
     ax.set_xlabel('x pixel')
     ax.set_ylabel('y pixel')
     # ax.set_title("Phantom image=")
-    fig.suptitle('Image', fontsize=16)
+    # fig.suptitle('Image', fontsize=16)
+    fig.suptitle(title, fontsize=16)
     fig.colorbar(img, ax=ax, orientation='vertical')
     # fig.canvas.mpl_connect('key_press_event', process_key_axial)
     for x,y in center:
@@ -112,7 +113,7 @@ def shape_detect(c):
 
 
 
-def mtf_calc(ROI, ROInoise):
+def mtf_calc(ROI):
     print('calculating MTF')
     # see doselab manual for method of calculation
     M5num=np.percentile(ROI[len(ROI)-1],90)-np.percentile(ROI[len(ROI)-1],10)
@@ -149,38 +150,7 @@ def mtf_calc(ROI, ROInoise):
 
 
 def cnr_calc(ROI,ROInoise):
-    #nothing here yet
     print('calculating CNR')
-    plt.figure()
-    plt.imshow(ROI[0])
-    plt.title('ROI_0')
-    plt.figure()
-    plt.imshow(ROI[1])
-    plt.title('ROI_1')
-    plt.figure()
-    plt.imshow(ROInoise[0])
-    plt.title('ROInoise_0')
-    plt.figure()
-    plt.imshow(ROInoise[1])
-    plt.title('ROInoise_1')
-    # plt.figure()
-    # plt.imshow(ROInoise[2])
-    # plt.title('ROInoise_2')
-    # plt.figure()
-    # plt.imshow(ROInoise[3])
-    # plt.title('ROInoise_3')
-    # plt.figure()
-    # plt.imshow(ROInoise[4])
-    # plt.title('ROInoise_4')
-    # plt.figure()
-    # plt.imshow(ROInoise[5])
-    # plt.title('ROInoise_5')
-
-
-    plt.show()
-    # exit(0)
-
-
 
     mean_0=np.mean(ROI[0])
     mean_1=np.mean(ROI[1])
@@ -189,21 +159,20 @@ def cnr_calc(ROI,ROInoise):
     print('contrast=', contrast)
 
     # std_dev_noise_0=np.std(ROI[0])
-    std_dev_noise_0=np.std(ROInoise[0])
-    std_dev_noise_1=np.std(ROInoise[1])
-    std_dev_noise_2=np.std(ROInoise[2])
-    std_dev_noise_3=np.std(ROInoise[3])
-    std_dev_noise_4=np.std(ROInoise[4])
-    std_dev_noise_5=np.std(ROInoise[5])
-    avg_std_dev_noise=(1/sqrt(2))*((std_dev_noise_0+std_dev_noise_1+std_dev_noise_2+std_dev_noise_3+std_dev_noise_4+std_dev_noise_5)/6)
+    std_dev_noise_0=np.std(ROInoise)
+
+    # std_dev_noise_0=np.std(ROInoise[0])
+    # std_dev_noise_1=np.std(ROInoise[1])
+    # std_dev_noise_2=np.std(ROInoise[2])
+    # std_dev_noise_3=np.std(ROInoise[3])
+    # std_dev_noise_4=np.std(ROInoise[4])
+    # std_dev_noise_5=np.std(ROInoise[5])
+    # avg_std_dev_noise=(1/sqrt(2))*((std_dev_noise_0+std_dev_noise_1+std_dev_noise_2+std_dev_noise_3+std_dev_noise_4+std_dev_noise_5)/6)
+    # print('avg_std_dev_noise=',avg_std_dev_noise)
 
     print('std_dev_noise_0=',std_dev_noise_0)
-    # print('std_dev_noise_1=',std_dev_noise_1)
-    # print('std_dev_noise_2=',std_dev_noise_2)
-    # print('std_dev_noise_3=',std_dev_noise_3)
-    # print('std_dev_noise_4=',std_dev_noise_4)
-    # print('std_dev_noise_5=',std_dev_noise_5)
-    print('avg_std_dev_noise=',avg_std_dev_noise)
+
+
 
 
 
@@ -219,14 +188,9 @@ def cnr_calc(ROI,ROInoise):
 
 
     print('cnr=',cnr)
-    exit(0)
-
-
-
 
 
     plt.show()
-    exit(0)
 
 
 
@@ -253,315 +217,253 @@ def cnr_calc(ROI,ROInoise):
 
 
 
-def read_dicom(filename1,filename2,ioption):
-    if os.path.splitext(filename1)[1] == '.dcm':
-        dataset = pydicom.dcmread(filename1)
-        dataset2 = pydicom.dcmread(filename2)
-        SID = dataset.RTImageSID
-        dx = 1 / (SID * (1 / dataset.ImagePlanePixelSpacing[0]) / 1000)
-        dy = 1 / (SID * (1 / dataset.ImagePlanePixelSpacing[1]) / 1000)
-        print("pixel spacing row [mm]=", dx)
-        print("pixel spacing col [mm]=", dy)
+# def read_dicom(filename1,filename2,ioption):
+def read_dicom(dirname,ioption):
+    titletype=[]
+    for subdir, dirs, files in os.walk(dirname):
+        for file in tqdm(sorted(files)):
+            if os.path.splitext(dirname + file)[1] == '.dcm':
+                dataset = pydicom.dcmread(dirname + file)
+                if dataset[0x300c, 0x0006].value==1:
+                    LDRDicom = np.zeros((dataset.Rows, dataset.Columns, 0), dtype=dataset.pixel_array.dtype)
+                    tmp_array = dataset.pixel_array
+                    LDRDicom = np.dstack((LDRDicom, tmp_array))
+                    # print("slice thickness [mm]=", dataset.SliceThickness)
+                    SID = dataset.RTImageSID
+                    dx = 1 / (SID * (1 / dataset.ImagePlanePixelSpacing[0]) / 1000)
+                    dy = 1 / (SID * (1 / dataset.ImagePlanePixelSpacing[1]) / 1000)
+                    print("pixel spacing row [mm]=", dx)
+                    print("pixel spacing col [mm]=", dy)
+                elif dataset[0x300c, 0x0006].value==2:
+                    tmp_array = dataset.pixel_array
+                    LDRDicom = np.dstack((LDRDicom, tmp_array))
+                    titletype.append('LDR')
 
-        ArrayDicom_o = dataset.pixel_array
-        ArrayDicom = dataset.pixel_array
-        ArrayDicom2 = dataset2.pixel_array
+                if dataset[0x300c, 0x0006].value==3:
+                    HDRDicom = np.zeros((dataset.Rows, dataset.Columns, 0), dtype=dataset.pixel_array.dtype)
+                    tmp_array = dataset.pixel_array
+                    HDRDicom = np.dstack((HDRDicom, tmp_array))
+                    # print("slice thickness [mm]=", dataset.SliceThickness)
+                    SID = dataset.RTImageSID
+                    dx = 1 / (SID * (1 / dataset.ImagePlanePixelSpacing[0]) / 1000)
+                    dy = 1 / (SID * (1 / dataset.ImagePlanePixelSpacing[1]) / 1000)
+                    print("pixel spacing row [mm]=", dx)
+                    print("pixel spacing col [mm]=", dy)
+                elif dataset[0x300c, 0x0006].value==4:
+                    tmp_array = dataset.pixel_array
+                    HDRDicom = np.dstack((HDRDicom, tmp_array))
+                    titletype.append('HDR')
 
+                if dataset[0x300c, 0x0006].value==5:
+                    setupDicom = np.zeros((dataset.Rows, dataset.Columns, 0), dtype=dataset.pixel_array.dtype)
+                    tmp_array = dataset.pixel_array
+                    setupDicom = np.dstack((setupDicom, tmp_array))
+                    # print("slice thickness [mm]=", dataset.SliceThickness)
+                    SID = dataset.RTImageSID
+                    dx = 1 / (SID * (1 / dataset.ImagePlanePixelSpacing[0]) / 1000)
+                    dy = 1 / (SID * (1 / dataset.ImagePlanePixelSpacing[1]) / 1000)
+                    print("pixel spacing row [mm]=", dx)
+                    print("pixel spacing col [mm]=", dy)
+                elif dataset[0x300c, 0x0006].value==6:
+                    tmp_array = dataset.pixel_array
+                    setupDicom = np.dstack((setupDicom, tmp_array))
+                    titletype.append('setup')
 
+    print(np.shape(setupDicom),np.shape(HDRDicom),np.shape(LDRDicom))
+
+    ArrayDicom = np.dstack((LDRDicom,HDRDicom))
+    ArrayDicom = np.dstack((ArrayDicom,setupDicom))
+
+    print(np.shape(ArrayDicom),np.shape(ArrayDicom)[2]//2,titletype)
+
+    for i in range(0,np.shape(ArrayDicom)[2]//2):
+        print(2*i,2*i+1)
+        data_o=ArrayDicom[:,:,2*i]
+        data_1=ArrayDicom[:,:,2*i]
+        data_2=ArrayDicom[:,:,2*i+1]
 
         # test to make sure image is displayed correctly bibs are high amplitude against dark background
-        ctr_pixel = ArrayDicom[np.shape(ArrayDicom)[0] // 2, np.shape(ArrayDicom)[1] // 2]
-        corner_pixel = ArrayDicom[0, 0]
+        ctr_pixel = data_1[np.shape(data_1)[0] // 2, np.shape(data_1)[1] // 2]
+        corner_pixel = data_1[0, 0]
 
+        if ctr_pixel < corner_pixel:  # we need to invert the image range for both clinacs and tb
+            data_1 = u.range_invert(data_1)
+            data_2 = u.range_invert(data_2)
 
-
-        if ctr_pixel < corner_pixel:     #we need to invert the image range for both clinacs and tb
-            ArrayDicom=u.range_invert(ArrayDicom)
-            ArrayDicom2=u.range_invert(ArrayDicom2)
-
-
-
-        rand_noise = ArrayDicom - ArrayDicom2  # we need the random noise so we can calculate the MTF function
+        rand_noise = data_1 - data_2  # we need the random noise so we can calculate the MTF function
         # ArrayDicom_f= cv2.bilateralFilter(np.asarray(ArrayDicom,dtype='float32'), 33, 33, 17) #aggresive
         # ArrayDicom_f= cv2.bilateralFilter(np.asarray(ArrayDicom,dtype='float32'), 27, 27, 17) #good with (method2 mean0-mean1)/std_ROInoise[1]
-        ArrayDicom_f= cv2.bilateralFilter(np.asarray(ArrayDicom,dtype='float32'), 3, 17, 17) #mild
-        # rand_noise_v2 =  np.asarray(ArrayDicom,dtype='float32') - ArrayDicom_f #noise removed from the bilateral filter
-        rand_noise_v2 =  np.asarray(ArrayDicom,dtype='float32') - ArrayDicom_f
+        data_1_f = cv2.bilateralFilter(np.asarray(data_1, dtype='float32'), 3, 17, 17)  # mild
 
+        data_1 = u.norm01(data_1)
+        data_2 = u.norm01(data_2)
 
-        ArrayDicom=u.norm01(ArrayDicom)
-        ArrayDicom2=u.norm01(ArrayDicom2)
-
-
-        ArrayDicom= 255* ArrayDicom
-        ArrayDicom2= 255* ArrayDicom2
+        data_1 = 255 * data_1
+        data_2 = 255 * data_2
         # print(ArrayDicom.dtype)
 
+        data_1 = data_1.astype(np.uint8)
+        data_1 = data_2.astype(np.uint8)
 
-        ArrayDicom=ArrayDicom.astype(np.uint8)
-        ArrayDicom2=ArrayDicom2.astype(np.uint8)
-
-
-
-
-#-----------------------------------------------------------------------------------------------
-        #performing bilateral filtering to remove some noise without affecting the edges
-        img_bifilt=cv2.bilateralFilter(ArrayDicom,11,17,17)
+        # performing bilateral filtering to remove some noise without affecting the edges
+        img_bifilt = cv2.bilateralFilter(data_1, 11, 17, 17)
         # edged=cv2.Canny(img_bifilt,30,200)
 
-
         # #thresholding the image to find the square
-        th=cv2.threshold(img_bifilt,200,255,cv2.THRESH_TRUNC)[1]
-        th2=cv2.adaptiveThreshold(th,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,2)
-        th2=cv2.bitwise_not(th2)
-
-
-
-
+        th = cv2.threshold(img_bifilt, 200, 255, cv2.THRESH_TRUNC)[1]
+        th2 = cv2.adaptiveThreshold(th, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+        th2 = cv2.bitwise_not(th2)
 
         # doing blob detection
         # blobs_log = blob_log(th2, min_sigma=3, max_sigma=5, num_sigma=20, threshold=0.5,exclude_border=True)
-        blobs_log = blob_log(th2, min_sigma=3, max_sigma=5, num_sigma=20, threshold=0.5) # run on windows, for some stupid reason exclude_border is not recognized in my distro at home
+        blobs_log = blob_log(th2, min_sigma=3, max_sigma=5, num_sigma=20,
+                             threshold=0.5)  # run on windows, for some stupid reason exclude_border is not recognized in my distro at home
 
-        center=[]
-        point_det=[]
+        center = []
+        point_det = []
         for blob in blobs_log:
             y, x, r = blob
-            point_det.append((x,y,r))
+            point_det.append((x, y, r))
 
-        point_det=sorted(point_det,key=itemgetter(2),reverse=True)
+        point_det = sorted(point_det, key=itemgetter(2), reverse=True)
 
-        for i in range(0,2):
-            x, y, r = point_det[i]
-            center.append((int(round(x)),int(round(y))))
+        for j in range(0, 2):
+            x, y, r = point_det[j]
+            center.append((int(round(x)), int(round(y))))
 
+        viewer(data_1, dx, dy, center, titletype[i])
+        plt.show()
 
-        viewer(ArrayDicom, dx, dy, center)
+        # Now that we have correctly detected the points we need to estimate the scaling of the image and the location of every ROI
+        x1, y1 = center[0]
+        x2, y2 = center[1]
 
+        theta = atan(abs(y2 - y1) / abs(x2 - x1))
+        theta_deg = degrees(theta)
 
+        print('theta_deg (angle the phantom was placed) =', theta_deg)
 
-
-
-
-
-
-
-#         # # edges=cv2.Canny(th2,60,120)
-#
-#         # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
-#         # kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-#         # img=cv2.morphologyEx(th2, cv2.MORPH_CLOSE, kernel)
-#
-#         # contours=cv2.findContours(edged.copy(),cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)[1]
-#         # for cnt in contours:
-#         #     print(cv2.contourArea(cnt))
-#         # print('contours_detected=',len(contours))
-#
-#
-#
-#         # cv2.drawContours(edged,contours, 1, (10,0,160), 3)
-#         # cv2.imshow('img',th2)
-#         # cv2.waitKey(0)
-#         # # cv2.imshow('img',img_bifilt)
-#         # # cv2.waitKey(0)
-#         # cv2.destroyAllWindows()
-#
-#
-#         # th=cv2.adaptiveThreshold(ArrayDicom,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,2)
-#         # plt.figure()
-#         # plt.imshow(ArrayDicom)
-#         # plt.title('original')
-#         #
-#         # plt.figure()
-#         # plt.imshow(img_bifilt)
-#         # plt.title('bilinear filtered')
-#         #
-#         # plt.figure()
-#         # plt.imshow(th)blob
-#         # plt.title('threshold applied')
-#         #
-#         plt.figure()
-#         plt.imshow(th2)
-#         plt.title('2 threshold')
-#         #
-#         # # plt.figure()
-#         # # plt.imshow(edges)
-#         # # plt.title('edges detected')
-#         #
-#         # # plt.figure()
-#         # # plt.imshow(img)
-#         # # plt.title('morphology applied (dil&ero)')
-#
-#         plt.show()
-#
-#
-#--------------------------------------------------------------------
+        # The distance between the centers of the ROIs in pixels is given by
+        dist_horz_roi = int(
+            21 / dx)  # where 21 mm is the witdh of the ROI each ROI is 20 mm width with 1mm spacer and 28mm in height
+        dist_vert_roi = int(
+            28 / dy)  # where 21 mm is the witdh of the ROI each ROI is 20 mm width with 1mm spacer and 28mm in height
+        width_roi = int(20 / dx) - 10  # just subtracting a few pixels to avoid edge effects
+        height_roi = int(27 / dy) - 10
+        print('dist_horz_roi=', dist_horz_roi)
 
 
 
+        # The ROIs location can be identified by its positions with respect to the two points
+        # let's rotate the image around the center of the first ROI
+        xrot = int(abs(x2 + x1) / 2)
+        yrot = int(abs(y2 + y1) / 2)
 
 
 
-    #Now that we have correctly detected the points we need to estimate the scaling of the image and the location of every ROI
-    x1,y1=center[0]
-    x2,y2=center[1]
+        M = cv2.getRotationMatrix2D((xrot, yrot), theta_deg, 1)
+        data_o_rot = cv2.warpAffine(u.range_invert(data_o), M, (np.shape(data_o)[1], np.shape(data_o)[0]))  # if we want to use the filtered values
+        data_f_rot = cv2.warpAffine(data_1_f, M, (np.shape(data_1_f)[1], np.shape(data_1_f)[0]))  # if we want to use the filtered values
+        # ArrayDicom_rot=cv2.warpAffine(ArrayDicom,M,(np.shape(ArrayDicom_o)[1],np.shape(ArrayDicom_o)[0]))
+        rand_noise_rot = cv2.warpAffine(rand_noise, M, (np.shape(rand_noise)[1], np.shape(rand_noise)[0]))
 
-    theta=atan(abs(y2-y1)/abs(x2-x1))
-    theta_deg=degrees(theta)
+        # plt.figure()
+        # plt.imshow(ArrayDicom_rot)
+        # plt.title('ArrayDicom_rot')
+        # plt.figure()
+        # plt.imshow(ArrayDicom_f_rot)
+        # plt.title('ArrayDicom_f_rot')
+        # plt.show()
+        # exit(0)
 
-    print('theta_deg (angle the phantom was placed) =',theta_deg)
+        ROImtf = []
+        ROImtf.append(data_f_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
+                      xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
+        ROImtf.append(data_f_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
+                      xrot - dist_horz_roi - int(width_roi / 2):xrot - dist_horz_roi + int(width_roi / 2)])
+        ROImtf.append(data_f_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
+                      xrot + dist_horz_roi - int(width_roi / 2):xrot + dist_horz_roi + int(width_roi / 2)])
+        ROImtf.append(data_f_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
+                      xrot - 2 * dist_horz_roi - int(width_roi / 2):xrot - 2 * dist_horz_roi + int(width_roi / 2)])
+        ROImtf.append(data_f_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
+                      xrot + 2 * dist_horz_roi - int(width_roi / 2):xrot + 2 * dist_horz_roi + int(width_roi / 2)])
 
-    #The distance between the centers of the ROIs in pixels is given by
-    dist_horz_roi=int(21/dx)       #where 21 mm is the witdh of the ROI each ROI is 20 mm width with 1mm spacer and 28mm in height
-    dist_vert_roi=int(28/dy)       #where 21 mm is the witdh of the ROI each ROI is 20 mm width with 1mm spacer and 28mm in height
-    width_roi=int(20/dx)-10 # just subtracting a few pixels to avoid edge effects
-    height_roi=int(27/dy)-10
-    print('dist_horz_roi=',dist_horz_roi)
+        ROIcnr = []
+        ROIcnr.append(
+            data_o_rot[yrot - dist_vert_roi - int(height_roi / 2):yrot - dist_vert_roi + int(height_roi / 2),
+            xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
+        ROIcnr.append(
+            data_o_rot[yrot + dist_vert_roi - int(height_roi / 2):yrot + dist_vert_roi + int(height_roi / 2),
+            xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
 
+        ROIcnr_noise = []
+        ROIcnr_noise.append(
+            rand_noise_rot[yrot - dist_vert_roi - int(height_roi / 2):yrot - dist_vert_roi + int(height_roi / 2),
+            xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
 
-    #The ROIs location can be identified by its positions with respect to the two points
-    #let's rotate the image around the center of the first ROI
-    xrot=int(abs(x2+x1)/2)
-    yrot=int(abs(y2+y1)/2)
+        # ROIcnr_noise.append(rand_noise_rot[yrot + dist_vert_roi - int(height_roi / 2):yrot + dist_vert_roi + int(height_roi / 2),
+        #               xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
+        #
+        # ROIcnr_noise.append(rand_noise_rot[yrot - dist_vert_roi - int(height_roi / 2):yrot - dist_vert_roi + int(height_roi / 2),
+        #               xrot - dist_horz_roi- int(width_roi / 2):xrot - dist_horz_roi+ int(width_roi / 2)])
+        # ROIcnr_noise.append(rand_noise_rot[yrot + dist_vert_roi - int(height_roi / 2):yrot + dist_vert_roi + int(height_roi / 2),
+        #               xrot - dist_horz_roi- int(width_roi / 2):xrot - dist_horz_roi+ int(width_roi / 2)])
+        #
+        # ROIcnr_noise.append(rand_noise_rot[yrot - dist_vert_roi - int(height_roi / 2):yrot - dist_vert_roi + int(height_roi / 2),
+        #               xrot + dist_horz_roi- int(width_roi / 2):xrot + dist_horz_roi + int(width_roi / 2)])
+        # ROIcnr_noise.append(rand_noise_rot[yrot + dist_vert_roi - int(height_roi / 2):yrot + dist_vert_roi + int(height_roi / 2),
+        #               xrot + dist_horz_roi- int(width_roi / 2):xrot + dist_horz_roi + int(width_roi / 2)])
 
+        # now that we have the ROIs we can proceed to calculate the rMTF
+        mtf_calc(ROImtf)
 
-    M = cv2.getRotationMatrix2D((xrot,yrot),theta_deg,1)
-    ArrayDicom_rot=cv2.warpAffine(u.range_invert(ArrayDicom_o),M,(np.shape(ArrayDicom_o)[1],np.shape(ArrayDicom_o)[0])) #if we want to use the filtered values
-    # ArrayDicom_rot=cv2.warpAffine(ArrayDicom,M,(np.shape(ArrayDicom_o)[1],np.shape(ArrayDicom_o)[0]))
-    rand_noise_rot=cv2.warpAffine(rand_noise,M,(np.shape(rand_noise)[1],np.shape(rand_noise)[0]))
-    rand_noise_v2_rot=cv2.warpAffine(rand_noise_v2,M,(np.shape(rand_noise)[1],np.shape(rand_noise)[0]))
-
-    # plt.figure()
-    # plt.imshow(ArrayDicom_rot)
-    # plt.title('ArrayDicom_rot')
-    # plt.show()
-    # exit(0)
-
-
-    ROImtf=[]
-    ROImtf.append(ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-int(width_roi/2):xrot+int(width_roi/2)])
-    ROImtf.append(ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-dist_horz_roi-int(width_roi/2):xrot-dist_horz_roi+int(width_roi/2)])
-    ROImtf.append(ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot+dist_horz_roi-int(width_roi/2):xrot+dist_horz_roi+int(width_roi/2)])
-    ROImtf.append(ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-2*dist_horz_roi-int(width_roi/2):xrot-2*dist_horz_roi+int(width_roi/2)])
-    ROImtf.append(ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot+2*dist_horz_roi-int(width_roi/2):xrot+2*dist_horz_roi+int(width_roi/2)])
-
-    ROInoise = []
-    ROInoise.append(rand_noise_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
-               xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
-    ROInoise.append(rand_noise_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
-               xrot - dist_horz_roi - int(width_roi / 2):xrot - dist_horz_roi + int(width_roi / 2)])
-    ROInoise.append(rand_noise_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
-               xrot + dist_horz_roi - int(width_roi / 2):xrot + dist_horz_roi + int(width_roi / 2)])
-    ROInoise.append(rand_noise_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
-               xrot - 2 * dist_horz_roi - int(width_roi / 2):xrot - 2 * dist_horz_roi + int(width_roi / 2)])
-    ROInoise.append(rand_noise_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
-               xrot + 2 * dist_horz_roi - int(width_roi / 2):xrot + 2 * dist_horz_roi + int(width_roi / 2)])
-
-
-
-    ROIcnr = []
-    ROIcnr.append(ArrayDicom_rot[yrot - dist_vert_roi - int(height_roi / 2):yrot - dist_vert_roi + int(height_roi / 2),
-                  xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
-    ROIcnr.append(ArrayDicom_rot[yrot + dist_vert_roi - int(height_roi / 2):yrot + dist_vert_roi + int(height_roi / 2),
-                  xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
-
-
-    ROIcnr_noise = []
-    ROIcnr_noise.append(rand_noise_rot[yrot - dist_vert_roi - int(height_roi / 2):yrot - dist_vert_roi + int(height_roi / 2),
-                  xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
-    ROIcnr_noise.append(rand_noise_rot[yrot + dist_vert_roi - int(height_roi / 2):yrot + dist_vert_roi + int(height_roi / 2),
-                  xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
-
-    ROIcnr_noise.append(rand_noise_rot[yrot - dist_vert_roi - int(height_roi / 2):yrot - dist_vert_roi + int(height_roi / 2),
-                  xrot - dist_horz_roi- int(width_roi / 2):xrot - dist_horz_roi+ int(width_roi / 2)])
-    ROIcnr_noise.append(rand_noise_rot[yrot + dist_vert_roi - int(height_roi / 2):yrot + dist_vert_roi + int(height_roi / 2),
-                  xrot - dist_horz_roi- int(width_roi / 2):xrot - dist_horz_roi+ int(width_roi / 2)])
-
-    ROIcnr_noise.append(rand_noise_rot[yrot - dist_vert_roi - int(height_roi / 2):yrot - dist_vert_roi + int(height_roi / 2),
-                  xrot + dist_horz_roi- int(width_roi / 2):xrot + dist_horz_roi + int(width_roi / 2)])
-    ROIcnr_noise.append(rand_noise_rot[yrot + dist_vert_roi - int(height_roi / 2):yrot + dist_vert_roi + int(height_roi / 2),
-                  xrot + dist_horz_roi- int(width_roi / 2):xrot + dist_horz_roi + int(width_roi / 2)])
+        # now that we have the ROIs we can proceed to calculate the CNR (contrast to noise ratio and the random noise)
+        cnr_calc(ROIcnr, ROIcnr_noise)
 
 
 
 
-    ROI1=ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-int(width_roi/2):xrot+int(width_roi/2)]
-    ROI2=ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-dist_horz_roi-int(width_roi/2):xrot-dist_horz_roi+int(width_roi/2)]
-    ROI3=ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot+dist_horz_roi-int(width_roi/2):xrot+dist_horz_roi+int(width_roi/2)]
-    ROI4=ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot-2*dist_horz_roi-int(width_roi/2):xrot-2*dist_horz_roi+int(width_roi/2)]
-    ROI5=ArrayDicom_rot[yrot-int(height_roi/2):yrot+int(height_roi/2),xrot+2*dist_horz_roi-int(width_roi/2):xrot+2*dist_horz_roi+int(width_roi/2)]
 
-
-    # plt.figure()
-    # plt.imshow(ROInoise[0])
-    # plt.title('ROI1')
+    # # Normal mode:
+    # print()
+    # print("Filename.........:", file)
+    # print("Storage type.....:", dataset.SOPClassUID)
+    # print()
     #
-    # plt.figure()
-    # plt.imshow(ROInoise[1])
-    # plt.title('ROI2')
-    #
-    # plt.figure()
-    # plt.imshow(ROInoise[2])
-    # plt.title('ROI3')
-    #
-    # plt.figure()
-    # plt.imshow(ROInoise[3])
-    # plt.title('ROI4')
-    #
-    # plt.figure()
-    # plt.imshow(ROInoise[4])
-    # plt.title('ROI5')
-    #
-    # plt.show()
-
-    #now that we have the ROIs we can proceed to calculate the rMTF
-    mtf_calc(ROImtf,ROInoise)
-
-    #now that we have the ROIs we can proceed to calculate the CNR (contrast to noise ratio and the random noise)
-    cnr_calc(ROIcnr,ROIcnr_noise)
-
-
-
-
-
-
-
-    # Normal mode:
-    print()
-    print("Filename.........:", filename1)
-    print("Storage type.....:", dataset.SOPClassUID)
-    print()
-
-    pat_name = dataset.PatientName
-    display_name = pat_name.family_name + ", " + pat_name.given_name
-    print("Patient's name...:", display_name)
-    print("Patient id.......:", dataset.PatientID)
-    print("Modality.........:", dataset.Modality)
-    print("Study Date.......:", dataset.StudyDate)
-    print("Gantry angle......", dataset.GantryAngle)
-    #
-    # if 'PixelData' in dataset:
-    #     rows = int(dataset.Rows)
-    #     cols = int(dataset.Columns)
-    #     print("Image size.......: {rows:d} x {cols:d}, {size:d} bytes".format(
-    #         rows=rows, cols=cols, size=len(dataset.PixelData)))
-    #     if 'PixelSpacing' in dataset:
-    #         print("Pixel spacing....:", dataset.PixelSpacing)
-    #
-    # # use .get() if not sure the item exists, and want a default value if missing
-    # print("Slice location...:", dataset.get('SliceLocation', "(missing)"))
+    # pat_name = dataset.PatientName
+    # display_name = pat_name.family_name + ", " + pat_name.given_name
+    # print("Patient's name...:", display_name)
+    # print("Patient id.......:", dataset.PatientID)
+    # print("Modality.........:", dataset.Modality)
+    # print("Study Date.......:", dataset.StudyDate)
+    # print("Gantry angle......", dataset.GantryAngle)
+    # #
+    # # if 'PixelData' in dataset:
+    # #     rows = int(dataset.Rows)
+    # #     cols = int(dataset.Columns)
+    # #     print("Image size.......: {rows:d} x {cols:d}, {size:d} bytes".format(
+    # #         rows=rows, cols=cols, size=len(dataset.PixelData)))
+    # #     if 'PixelSpacing' in dataset:
+    # #         print("Pixel spacing....:", dataset.PixelSpacing)
+    # #
+    # # # use .get() if not sure the item exists, and want a default value if missing
+    # # print("Slice location...:", dataset.get('SliceLocation', "(missing)"))
     plt.show()
 
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('epid1',type=str,help="Input the filename")
-parser.add_argument('epid2',type=str,help="Input the filename")
+parser.add_argument('direpid',type=str,help="Input the directory name")
+
+# parser.add_argument('epid1',type=str,help="Input the filename")
+# parser.add_argument('epid2',type=str,help="Input the filename")
 # parser.add_argument('-a', '--add', nargs='?', type=argparse.FileType('r'), help='additional file for averaging before processing')
 args=parser.parse_args()
 
-filename1=args.epid1
-filename2=args.epid2
+dirname=args.direpid
+
+# filename1=args.epid1
+# filename2=args.epid2
 
 
 
@@ -582,4 +484,5 @@ while True:  # example of infinite loops using try and except to catch only numb
 
 
 
-read_dicom(filename1,filename2,ioption)
+# read_dicom(filename1,filename2,ioption)
+read_dicom(dirname,ioption)
