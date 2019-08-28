@@ -80,6 +80,8 @@ def viewer(volume, dx, dy,center,title,textstr):
     for x,y in center:
         ax.scatter(x,y)
 
+    return fig
+
 
 
 
@@ -294,8 +296,9 @@ def read_dicom(dirname,ioption):
 
     print(np.shape(ArrayDicom),np.shape(ArrayDicom)[2]//2,titletype)
 
-    fig = plt.figure(figsize=(7, 5))
-    ax = fig.subplots()
+    figs=[]
+    mtf_fig = plt.figure(figsize=(7, 5))
+    ax = mtf_fig.subplots()
     for i in range(0,np.shape(ArrayDicom)[2]//2):
         LinePairs = [0.76, 0.43, 0.23, 0.20, 0.1]
         print(2*i,2*i+1)
@@ -438,10 +441,9 @@ def read_dicom(dirname,ioption):
         textstr = cnr_calc(ROIcnr, ROIcnr_noise)
         textstr=titletype[i]+'\n'+'Unit='+str(station_name)+'\n'+textstr+'Integrated MTF='+ '{:4f}'.format(float(iMTF))
 
-        ves = []
 
 
-        viewer(data_1, dx, dy, center, titletype[i],textstr)
+        figs.append(viewer(data_1, dx, dy, center, titletype[i],textstr))
 
 
         # creating the MTF figure
@@ -458,17 +460,16 @@ def read_dicom(dirname,ioption):
 
 
 
-    plt.show()
+    # plt.show()
+
+    with PdfPages(dirname + '/' + 'Epid_report.pdf') as pdf:
+    # with PdfPages('Epid_report.pdf') as pdf:
+        for fig in figs:
+            pdf.savefig(fig)
+
+        pdf.savefig(mtf_fig)
+
     exit(0)
-
-
-
-        # with PdfPages(dirname + '/' + 'Light-rad_report.pdf') as pdf:
-        #     Page = plt.figure(figsize=(4, 5))
-        #     Page.text(0.45, 0.9, 'Report', size=18)
-
-
-
 
 
 
