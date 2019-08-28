@@ -24,6 +24,7 @@ import sys
 import pydicom
 import subprocess
 import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon
 from matplotlib.backends.backend_pdf import PdfPages
 from tqdm import tqdm
 import numpy as np
@@ -53,9 +54,10 @@ def running_mean(x, N):
 
 
 # axial visualization and scrolling
-def viewer(volume, dx, dy,center,title):
+def viewer(volume, dx, dy,center,title,textstr):
     # remove_keymap_conflicts({'j', 'k'})
-    fig, ax = plt.subplots()
+    fig = plt.figure(figsize=(10,5))
+    ax = fig.subplots()
     ax.volume = volume
     extent = (0, 0 + (volume.shape[1] * dx),
               0, 0 + (volume.shape[0] * dy))
@@ -67,11 +69,18 @@ def viewer(volume, dx, dy,center,title):
     ax.set_ylabel('y pixel')
     # ax.set_title("Phantom image=")
     # fig.suptitle('Image', fontsize=16)
-    fig.suptitle(title, fontsize=16)
+    ax.set_title(title, fontsize=16)
+
+    # for i in range(0,len(poly)): #maybe at a later stage we will add polygons drawings
+    #     ax.add_patch(poly[i])
+    ax.text(volume.shape[1]+250,200,textstr)
+    fig.subplots_adjust(right=0.7)
     fig.colorbar(img, ax=ax, orientation='vertical')
     # fig.canvas.mpl_connect('key_press_event', process_key_axial)
     for x,y in center:
         ax.scatter(x,y)
+
+
 
 
 
@@ -146,7 +155,7 @@ def mtf_calc(ROI):
     iMTF=abs(np.trapz(MTF,LinePairs)) #since the x is reversed (higher to lower) we just the the absolute value
     print('integral MTF',iMTF)
 
-    return MTF
+    return MTF,iMTF
 
 
 
@@ -192,6 +201,12 @@ def cnr_calc(ROI,ROInoise):
     print('cnr=',cnr)
 
 
+    textstr='Random Noise='+'{:4f}'.format(float(std_dev_noise_0)) + '\n' + 'CNR=' + '{:4f}'.format(float(cnr))+'\n'
+
+
+    return textstr
+
+
 
 
 
@@ -225,6 +240,8 @@ def read_dicom(dirname,ioption):
         for file in tqdm(sorted(files)):
             if os.path.splitext(dirname + file)[1] == '.dcm':
                 dataset = pydicom.dcmread(dirname + file)
+                station_name=dataset[0x3002,0x0020].value
+
                 if dataset[0x300c, 0x0006].value==1:
                     LDRDicom = np.zeros((dataset.Rows, dataset.Columns, 0), dtype=dataset.pixel_array.dtype)
                     tmp_array = dataset.pixel_array
@@ -277,10 +294,8 @@ def read_dicom(dirname,ioption):
 
     print(np.shape(ArrayDicom),np.shape(ArrayDicom)[2]//2,titletype)
 
-
-
-
-    plt.figure()
+    fig = plt.figure(figsize=(7, 5))
+    ax = fig.subplots()
     for i in range(0,np.shape(ArrayDicom)[2]//2):
         LinePairs = [0.76, 0.43, 0.23, 0.20, 0.1]
         print(2*i,2*i+1)
@@ -337,8 +352,8 @@ def read_dicom(dirname,ioption):
             x, y, r = point_det[j]
             center.append((int(round(x)), int(round(y))))
 
-        # viewer(data_1, dx, dy, center, titletype[i])
-        # plt.show()
+
+
 
         # Now that we have correctly detected the points we need to estimate the scaling of the image and the location of every ROI
         x1, y1 = center[0]
@@ -414,21 +429,30 @@ def read_dicom(dirname,ioption):
         #               xrot + dist_horz_roi- int(width_roi / 2):xrot + dist_horz_roi + int(width_roi / 2)])
 
         # now that we have the ROIs we can proceed to calculate the rMTF
-        MTF=mtf_calc(ROImtf)
+        MTF,iMTF=mtf_calc(ROImtf)
         print(titletype,'MTF=',MTF)
 
-        # creating the MTF figure
 
-        plt.title('rMTF plot')
-        plt.xlabel('Line pairs lp/mm')
-        plt.ylabel('MTF')
-        plt.ylim((0, 1))
-        plt.xlim((0.1, 0.76))
-        plt.plot(LinePairs, MTF,label=titletype[i])
-        plt.legend()
 
         # now that we have the ROIs we can proceed to calculate the CNR (contrast to noise ratio and the random noise)
-        cnr_calc(ROIcnr, ROIcnr_noise)
+        textstr = cnr_calc(ROIcnr, ROIcnr_noise)
+        textstr=titletype[i]+'\n'+'Unit='+str(station_name)+'\n'+textstr+'Integrated MTF='+ '{:4f}'.format(float(iMTF))
+
+        ves = []
+
+
+        viewer(data_1, dx, dy, center, titletype[i],textstr)
+
+
+        # creating the MTF figure
+        ax.set_title('rMTF plot')
+        ax.set_xlabel('Line pairs lp/mm')
+        ax.set_ylabel('MTF')
+        ax.set_ylim((0, 1))
+        ax.set_xlim((0.1, 0.76))
+        ax.hlines(0.5,0.1,0.76,colors='r',linestyles='--')
+        ax.plot(LinePairs, MTF,label=titletype[i])
+        ax.legend()
 
 
 
