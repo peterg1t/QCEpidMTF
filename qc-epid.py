@@ -132,19 +132,21 @@ def mtf_calc(ROI):
     print(MTF)
 
 
-    plt.figure()
-    plt.plot(LinePairs,MTF)
-    plt.title('rMTF plot')
-    plt.xlabel('Line pairs lp/mm')
-    plt.ylabel('MTF')
-    plt.ylim((0,1))
-    plt.xlim((0.1,0.76))
-    plt.show(block=False)
+    # plt.figure()
+    # plt.plot(LinePairs,MTF)
+    # plt.title('rMTF plot')
+    # plt.xlabel('Line pairs lp/mm')
+    # plt.ylabel('MTF')
+    # plt.ylim((0,1))
+    # plt.xlim((0.1,0.76))
+    # plt.show(block=False)
 
 
     # we also want to integrate the MTF and we use the Newton-Cotes formula for integration over a irregular space
     iMTF=abs(np.trapz(MTF,LinePairs)) #since the x is reversed (higher to lower) we just the the absolute value
     print('integral MTF',iMTF)
+
+    return MTF
 
 
 
@@ -190,7 +192,6 @@ def cnr_calc(ROI,ROInoise):
     print('cnr=',cnr)
 
 
-    plt.show()
 
 
 
@@ -276,7 +277,12 @@ def read_dicom(dirname,ioption):
 
     print(np.shape(ArrayDicom),np.shape(ArrayDicom)[2]//2,titletype)
 
+
+
+
+    plt.figure()
     for i in range(0,np.shape(ArrayDicom)[2]//2):
+        LinePairs = [0.76, 0.43, 0.23, 0.20, 0.1]
         print(2*i,2*i+1)
         data_o=ArrayDicom[:,:,2*i]
         data_1=ArrayDicom[:,:,2*i]
@@ -331,8 +337,8 @@ def read_dicom(dirname,ioption):
             x, y, r = point_det[j]
             center.append((int(round(x)), int(round(y))))
 
-        viewer(data_1, dx, dy, center, titletype[i])
-        plt.show()
+        # viewer(data_1, dx, dy, center, titletype[i])
+        # plt.show()
 
         # Now that we have correctly detected the points we need to estimate the scaling of the image and the location of every ROI
         x1, y1 = center[0]
@@ -367,25 +373,18 @@ def read_dicom(dirname,ioption):
         # ArrayDicom_rot=cv2.warpAffine(ArrayDicom,M,(np.shape(ArrayDicom_o)[1],np.shape(ArrayDicom_o)[0]))
         rand_noise_rot = cv2.warpAffine(rand_noise, M, (np.shape(rand_noise)[1], np.shape(rand_noise)[0]))
 
-        # plt.figure()
-        # plt.imshow(ArrayDicom_rot)
-        # plt.title('ArrayDicom_rot')
-        # plt.figure()
-        # plt.imshow(ArrayDicom_f_rot)
-        # plt.title('ArrayDicom_f_rot')
-        # plt.show()
-        # exit(0)
+
 
         ROImtf = []
-        ROImtf.append(data_f_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
+        ROImtf.append(data_o_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
                       xrot - int(width_roi / 2):xrot + int(width_roi / 2)])
-        ROImtf.append(data_f_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
+        ROImtf.append(data_o_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
                       xrot - dist_horz_roi - int(width_roi / 2):xrot - dist_horz_roi + int(width_roi / 2)])
-        ROImtf.append(data_f_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
+        ROImtf.append(data_o_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
                       xrot + dist_horz_roi - int(width_roi / 2):xrot + dist_horz_roi + int(width_roi / 2)])
-        ROImtf.append(data_f_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
+        ROImtf.append(data_o_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
                       xrot - 2 * dist_horz_roi - int(width_roi / 2):xrot - 2 * dist_horz_roi + int(width_roi / 2)])
-        ROImtf.append(data_f_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
+        ROImtf.append(data_o_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
                       xrot + 2 * dist_horz_roi - int(width_roi / 2):xrot + 2 * dist_horz_roi + int(width_roi / 2)])
 
         ROIcnr = []
@@ -415,10 +414,36 @@ def read_dicom(dirname,ioption):
         #               xrot + dist_horz_roi- int(width_roi / 2):xrot + dist_horz_roi + int(width_roi / 2)])
 
         # now that we have the ROIs we can proceed to calculate the rMTF
-        mtf_calc(ROImtf)
+        MTF=mtf_calc(ROImtf)
+        print(titletype,'MTF=',MTF)
+
+        # creating the MTF figure
+
+        plt.title('rMTF plot')
+        plt.xlabel('Line pairs lp/mm')
+        plt.ylabel('MTF')
+        plt.ylim((0, 1))
+        plt.xlim((0.1, 0.76))
+        plt.plot(LinePairs, MTF,label=titletype[i])
+        plt.legend()
 
         # now that we have the ROIs we can proceed to calculate the CNR (contrast to noise ratio and the random noise)
         cnr_calc(ROIcnr, ROIcnr_noise)
+
+
+
+
+
+    plt.show()
+    exit(0)
+
+
+
+        # with PdfPages(dirname + '/' + 'Light-rad_report.pdf') as pdf:
+        #     Page = plt.figure(figsize=(4, 5))
+        #     Page.text(0.45, 0.9, 'Report', size=18)
+
+
 
 
 
