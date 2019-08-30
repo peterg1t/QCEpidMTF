@@ -238,7 +238,7 @@ def cnr_calc(ROI,ROInoise):
 
 # def read_dicom(filename1,filename2,ioption):
 def read_dicom(dirname,ioption):
-    titletype=[]
+    titletype=['LDR','HDR','setup']
     for subdir, dirs, files in os.walk(dirname):
         for file in tqdm(sorted(files)):
             if os.path.splitext(dirname + file)[1] == '.dcm':
@@ -258,7 +258,8 @@ def read_dicom(dirname,ioption):
                 elif dataset[0x300c, 0x0006].value==2:
                     tmp_array = dataset.pixel_array
                     LDRDicom = np.dstack((LDRDicom, tmp_array))
-                    titletype.append('LDR')
+                    # titletype.append('LDR')
+
 
                 if dataset[0x300c, 0x0006].value==3:
                     HDRDicom = np.zeros((dataset.Rows, dataset.Columns, 0), dtype=dataset.pixel_array.dtype)
@@ -273,7 +274,7 @@ def read_dicom(dirname,ioption):
                 elif dataset[0x300c, 0x0006].value==4:
                     tmp_array = dataset.pixel_array
                     HDRDicom = np.dstack((HDRDicom, tmp_array))
-                    titletype.append('HDR')
+                    # titletype.append('HDR')
 
                 if dataset[0x300c, 0x0006].value==5:
                     setupDicom = np.zeros((dataset.Rows, dataset.Columns, 0), dtype=dataset.pixel_array.dtype)
@@ -285,12 +286,16 @@ def read_dicom(dirname,ioption):
                     dy = 1 / (SID * (1 / dataset.ImagePlanePixelSpacing[1]) / 1000)
                     print("pixel spacing row [mm]=", dx)
                     print("pixel spacing col [mm]=", dy)
-                elif dataset[0x300c, 0x0006].value==6:
+                elif dataset[0x300c, 0x0006].value==6 or dataset[0x300c, 0x0006].value==12:
                     tmp_array = dataset.pixel_array
                     setupDicom = np.dstack((setupDicom, tmp_array))
-                    titletype.append('setup')
+                    # titletype.append('setup')
 
-    print(np.shape(setupDicom),np.shape(HDRDicom),np.shape(LDRDicom))
+    print(titletype)
+    # exit(0)
+
+    # print(np.shape(setupDicom),np.shape(HDRDicom),np.shape(LDRDicom))
+
 
     ArrayDicom = np.dstack((LDRDicom,HDRDicom))
     ArrayDicom = np.dstack((ArrayDicom,setupDicom))
