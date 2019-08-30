@@ -73,7 +73,7 @@ def viewer(volume, dx, dy,center,title,textstr):
 
     # for i in range(0,len(poly)): #maybe at a later stage we will add polygons drawings
     #     ax.add_patch(poly[i])
-    ax.text(volume.shape[1]+250,200,textstr)
+    ax.text((volume.shape[1]+250)*dx,(volume.shape[0])*dy,textstr)
     fig.subplots_adjust(right=0.75)
     fig.colorbar(img, ax=ax, orientation='vertical')
     # fig.canvas.mpl_connect('key_press_event', process_key_axial)
@@ -441,7 +441,7 @@ def read_dicom(dirname,ioption):
         # now that we have the ROIs we can proceed to calculate the CNR (contrast to noise ratio and the random noise)
         textstr = cnr_calc(ROIcnr, ROIcnr_noise)
         textstr=titletype[i]+'\n'+'Unit='+str(station_name)+'\n'+textstr+'Integrated MTF='+ '{:4f}'.format(float(iMTF))
-
+        print('this is the text string',textstr)
 
 
         figs.append(viewer(data_1, dx, dy, center, titletype[i],textstr))
@@ -462,14 +462,14 @@ def read_dicom(dirname,ioption):
 
 
 
-    # with PdfPages(dirname + '/' + 'Epid_report.pdf') as pdf:
-    # # with PdfPages('Epid_report.pdf') as pdf:
-    #     for fig in figs:
-    #         pdf.savefig(fig)
-    #
-    #     pdf.savefig(mtf_fig)
+    with PdfPages(dirname + '/' + 'Epid_report.pdf') as pdf:
+    # with PdfPages('Epid_report.pdf') as pdf:
+        for fig in figs:
+            pdf.savefig(fig)
 
-    plt.show()
+        pdf.savefig(mtf_fig)
+
+    # plt.show()
     exit(0)
 
 
