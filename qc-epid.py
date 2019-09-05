@@ -1116,7 +1116,7 @@ def read_dicom(dirname,ioption):
         print('this is the text string',textstr)
 
 
-        figs.append(viewer(data_1, dx, dy, center, titletype[i],textstr))
+        figs.append(viewer(data_o, dx, dy, center, titletype[i],textstr))
 
 
         # creating the MTF figure
