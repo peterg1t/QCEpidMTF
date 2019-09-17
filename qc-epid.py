@@ -687,6 +687,7 @@ import pydicom
 import subprocess
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
+from scipy.spatial.transform import Rotation as R
 from matplotlib.backends.backend_pdf import PdfPages
 from tqdm import tqdm
 import numpy as np
@@ -697,6 +698,7 @@ from math import *
 from operator import itemgetter
 from scipy.integrate import newton_cotes
 import utils as u
+import matplotlib.patches as patches
 
 
 def running_mean(x, N):
@@ -716,7 +718,7 @@ def running_mean(x, N):
 
 
 # axial visualization and scrolling
-def viewer(volume, dx, dy,center,title,textstr):
+def viewer(volume, corners, width, height, theta_deg, dx, dy,center,title,textstr):
     # remove_keymap_conflicts({'j', 'k'})
     fig = plt.figure(figsize=(8,5))
     ax = fig.subplots()
@@ -724,6 +726,17 @@ def viewer(volume, dx, dy,center,title,textstr):
     extent = (0, 0 + (volume.shape[1] * dx),
               0, 0 + (volume.shape[0] * dy))
     img=ax.imshow(volume, extent=extent)
+    ax.scatter(corners[0,:],corners[1,:])
+
+    # Create a Rectangle patch
+    for i in range(0,np.shape(corners)[1]):
+        rect = patches.Rectangle((corners[0,i],corners[1,i]), width*dx, height*dy,theta_deg, linewidth=1, edgecolor='r', facecolor='none')
+
+        # Add the patch to the Axes
+        ax.add_patch(rect)
+
+
+
     # img=ax.imshow(volume)
     ax.set_xlabel('x distance [mm]')
     ax.set_ylabel('y distance [mm]')
@@ -1045,7 +1058,7 @@ def read_dicom(dirname,ioption):
             21 / dx)  # where 21 mm is the witdh of the ROI each ROI is 20 mm width with 1mm spacer and 28mm in height
         dist_vert_roi = int(
             28 / dy)  # where 21 mm is the witdh of the ROI each ROI is 20 mm width with 1mm spacer and 28mm in height
-        width_roi = int(20 / dx) - 10  # just subtracting a few pixels to avoid edge effects
+        width_roi = int(20 / dx) - 20  # just subtracting a few pixels to avoid edge effects
         height_roi = int(27 / dy) - 10
         print('dist_horz_roi=', dist_horz_roi)
 
@@ -1059,6 +1072,7 @@ def read_dicom(dirname,ioption):
 
 
         M = cv2.getRotationMatrix2D((xrot, yrot), theta_deg, 1)
+        Minv = cv2.getRotationMatrix2D((xrot, yrot), theta_deg, -1)
         data_o_rot = cv2.warpAffine(u.range_invert(data_o), M, (np.shape(data_o)[1], np.shape(data_o)[0]))  # if we want to use the filtered values
         data_f_rot = cv2.warpAffine(data_1_f, M, (np.shape(data_1_f)[1], np.shape(data_1_f)[0]))  # if we want to use the filtered values
         # ArrayDicom_rot=cv2.warpAffine(ArrayDicom,M,(np.shape(ArrayDicom_o)[1],np.shape(ArrayDicom_o)[0]))
@@ -1077,6 +1091,49 @@ def read_dicom(dirname,ioption):
                       xrot - 2 * dist_horz_roi - int(width_roi / 2):xrot - 2 * dist_horz_roi + int(width_roi / 2)])
         ROImtf.append(data_o_rot[yrot - int(height_roi / 2):yrot + int(height_roi / 2),
                       xrot + 2 * dist_horz_roi - int(width_roi / 2):xrot + 2 * dist_horz_roi + int(width_roi / 2)])
+
+        # ROImtf_corners = [] #here we store all the corners of the ROI (y1,y2,x1,x2)
+        # ROImtf_corners.append( [ [ xrot - int(width_roi / 2),xrot + int(width_roi / 2)  ][ yrot - int(height_roi / 2),yrot + int(height_roi / 2)] ])
+
+        # ROImtf_corners=np.asarray( [ [ (- int(width_roi / 2))*dx,  (int(width_roi / 2))*dx
+        #                             ,(- dist_horz_roi - int(width_roi / 2))*dx, (- dist_horz_roi + int(width_roi / 2))*dx
+        #                             , (dist_horz_roi - int(width_roi / 2))*dx, (dist_horz_roi + int(width_roi / 2))*dx
+        #                             , (- 2 * dist_horz_roi - int(width_roi / 2))*dx, (- 2 * dist_horz_roi + int(width_roi / 2))*dx
+        #                             , ( 2 * dist_horz_roi - int(width_roi / 2))*dx,  (+ 2 * dist_horz_roi + int(width_roi / 2))*dx ]
+        #                             ,[ (- int(height_roi / 2))*dy, (int(height_roi / 2))*dy
+        #                             , (- int(height_roi / 2))*dy,  (int(height_roi / 2))*dy
+        #                             , (- int(height_roi / 2))*dy,  (int(height_roi / 2))*dy
+        #                             , (- int(height_roi / 2))*dy,  (int(height_roi / 2))*dy
+        #                             , (- int(height_roi / 2))*dy,  (int(height_roi / 2))*dy]
+        #                             ,[0, 0, 0, 0, 0, 0, 0, 0, 0, 0] ])
+
+        ROImtf_corners = np.asarray([[(- int(width_roi / 2)) * dx   #only keeping the bottom left point
+                                         , (- dist_horz_roi - int(width_roi / 2)) * dx
+                                         ,(dist_horz_roi - int(width_roi / 2)) * dx
+                                         , (- 2 * dist_horz_roi - int(width_roi / 2)) * dx
+                                         ,(2 * dist_horz_roi - int(width_roi / 2)) * dx]
+                                        , [(- int(height_roi / 2)) * dy
+                                         , (- int(height_roi / 2)) * dy
+                                         , (- int(height_roi / 2)) * dy
+                                         , (- int(height_roi / 2)) * dy
+                                         , (- int(height_roi / 2)) * dy]
+                                        , [0, 0, 0, 0, 0]])
+
+
+        # We create a new rotation matrix
+        r1 = R.from_euler('z', -theta_deg, degrees=True)
+        # We apply the new rotation matrix to the polygon points
+        ROImtf_corners_rot = np.matmul(np.asarray(r1.as_dcm()), ROImtf_corners)
+        ROImtf_corners_rot[0,:] = ROImtf_corners_rot[0,:]+xrot*dx
+        ROImtf_corners_rot[1,:] = ROImtf_corners_rot[1,:]+yrot*dy
+
+        ROImtf_corners[0, :] = ROImtf_corners[0, :] + xrot * dx
+        ROImtf_corners[1, :] = ROImtf_corners[1, :] + yrot * dy
+
+
+        # print('ROImtf_corner=',ROImtf_corners, 'ROI shape',np.shape(ROImtf_corners))
+        # exit(0)
+
 
         ROIcnr = []
         ROIcnr.append(
@@ -1106,6 +1163,7 @@ def read_dicom(dirname,ioption):
 
         # now that we have the ROIs we can proceed to calculate the rMTF
         MTF,iMTF=mtf_calc(ROImtf)
+        print('ROImtf_corners',ROImtf_corners,'rotation matrix=',M,'inverse rotation matrix=',Minv)
         print(titletype,'MTF=',MTF)
 
 
@@ -1113,10 +1171,11 @@ def read_dicom(dirname,ioption):
         # now that we have the ROIs we can proceed to calculate the CNR (contrast to noise ratio and the random noise)
         textstr = cnr_calc(ROIcnr, ROIcnr_noise)
         textstr=titletype[i]+'\n'+'Unit='+str(station_name)+'\n'+textstr+'Integrated MTF='+ '{:4f}'.format(float(iMTF))
-        print('this is the text string',textstr)
 
 
-        figs.append(viewer(data_o, dx, dy, center, titletype[i],textstr))
+        # figs.append(viewer(data_o_rot, ROImtf_corners, dx, dy, center, titletype[i],textstr))
+        figs.append(viewer(data_o, ROImtf_corners_rot, width_roi, height_roi, -theta_deg, dx, dy, center, titletype[i],textstr))
+        # figs.append(viewer(ROImtf[0], ROImtf_corners_rot, dist_horz_roi, dist_vert_roi, -theta_deg, dx, dy, center, titletype[i],textstr))
 
 
         # creating the MTF figure
