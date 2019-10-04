@@ -699,6 +699,7 @@ from operator import itemgetter
 from scipy.integrate import newton_cotes
 import utils as u
 import matplotlib.patches as patches
+from scipy.interpolate import splrep, splev, interp1d
 
 
 def running_mean(x, N):
@@ -1156,6 +1157,16 @@ def read_dicom(dirname,ioption):
         print(titletype,'MTF=',MTF)
 
 
+        LinePairs, MTF
+        # MTF_interp = interp1d(LinePairs, MTF, kind='cubic')
+        MTF_interp = interp1d(LinePairs, MTF, kind='linear')
+        LinePairs2 = np.linspace(LinePairs[0], LinePairs[len(LinePairs) - 1], 501, endpoint=True) #extending the range of the x-axis
+
+        value_near, index = u.find_nearest(MTF_interp(LinePairs2), 0.5)
+        print('value near=', value_near, 'index', index)
+        textstr2=titletype[i]+'\n'+'MTF_50='+str(LinePairs2[index]) # this text string shows the 50% MTF value
+
+
 
         # now that we have the ROIs we can proceed to calculate the CNR (contrast to noise ratio and the random noise)
         textstr = cnr_calc(ROIcnr, ROIcnr_noise)
@@ -1174,7 +1185,9 @@ def read_dicom(dirname,ioption):
         ax.set_ylim((0, 1))
         ax.set_xlim((0.1, 0.76))
         ax.hlines(0.5,0.1,0.76,colors='r',linestyles='--')
-        ax.plot(LinePairs, MTF,label=titletype[i])
+        # ax.plot(LinePairs, MTF,label=titletype[i])
+        ax.plot(LinePairs2, MTF_interp(LinePairs2),label=titletype[i])
+        ax.text(LinePairs2[len(LinePairs2)-1]+0.05 , MTF_interp(LinePairs2)[0]-i/10, textstr2) # where are we going to put the values
         ax.legend()
 
 
