@@ -335,8 +335,8 @@ def read_dicom(dirname,ioption):
                         dy = 1 / (SID * (1 / dataset.ImagePlanePixelSpacing[1]) / 1000)
                         print("pixel spacing row [mm]=", dx)
                         print("pixel spacing col [mm]=", dy)
-                    # elif dataset[0x300c, 0x0006].value==6 or dataset[0x300c, 0x0006].value==12:
-                    elif dataset[0x300c, 0x0006].value==6:
+                    elif dataset[0x300c, 0x0006].value==6 or dataset[0x300c, 0x0006].value==12:
+                    # elif dataset[0x300c, 0x0006].value==6:
                         tmp_array = dataset.pixel_array
                         setupDicom = np.dstack((setupDicom, tmp_array))
                         # titletype.append('setup')
@@ -352,7 +352,6 @@ def read_dicom(dirname,ioption):
                         dy = 1 / (SID * (1 / dataset.ImagePlanePixelSpacing[1]) / 1000)
                         print("pixel spacing row [mm]=", dx)
                         print("pixel spacing col [mm]=", dy)
-                    # elif dataset[0x300c, 0x0006].value==6 or dataset[0x300c, 0x0006].value==12:
                     else:
                         tmp_array = dataset.pixel_array
                         ArrayDicom = np.dstack((ArrayDicom, tmp_array))
